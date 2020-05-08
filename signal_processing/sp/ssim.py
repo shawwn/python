@@ -13,7 +13,7 @@ from scipy import ndimage
 import gauss
 
 
-def ssim(img1, img2, cs_map=False):
+def ssim(img1, img2, cs_map=False, mode='same'):
     """Return the Structural Similarity Map corresponding to input images img1 
     and img2 (images are assumed to be uint8)
     
@@ -31,14 +31,14 @@ def ssim(img1, img2, cs_map=False):
     L = 255 #bitdepth of image
     C1 = (K1*L)**2
     C2 = (K2*L)**2
-    mu1 = signal.fftconvolve(window, img1, mode='valid')
-    mu2 = signal.fftconvolve(window, img2, mode='valid')
+    mu1 = signal.fftconvolve(window, img1, mode=mode)
+    mu2 = signal.fftconvolve(window, img2, mode=mode)
     mu1_sq = mu1*mu1
     mu2_sq = mu2*mu2
     mu1_mu2 = mu1*mu2
-    sigma1_sq = signal.fftconvolve(window, img1*img1, mode='valid') - mu1_sq
-    sigma2_sq = signal.fftconvolve(window, img2*img2, mode='valid') - mu2_sq
-    sigma12 = signal.fftconvolve(window, img1*img2, mode='valid') - mu1_mu2
+    sigma1_sq = signal.fftconvolve(window, img1*img1, mode=mode) - mu1_sq
+    sigma2_sq = signal.fftconvolve(window, img2*img2, mode=mode) - mu2_sq
+    sigma12 = signal.fftconvolve(window, img1*img2, mode=mode) - mu1_mu2
     if cs_map:
         return (((2*mu1_mu2 + C1)*(2*sigma12 + C2))/((mu1_sq + mu2_sq + C1)*
                     (sigma1_sq + sigma2_sq + C2)), 
@@ -76,21 +76,26 @@ def msssim(img1, img2):
     return (numpy.prod(mcs[0:level-1]**weight[0:level-1])*
                     (mssim[level-1]**weight[level-1]))
 
+def rgb2gray(rgb):
+    r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    return gray
+
 def main():
     """Compute the SSIM index on two input images specified on the cmd line."""
     import pylab
     argv = sys.argv
     if len(argv) != 3:
-        print >>sys.stderr, 'usage: python -m sp.ssim image1.tif image2.tif'
+        sys.stderr.write('usage: python -m sp.ssim image1.tif image2.tif\n')
         sys.exit(2)
 
     try:
         from PIL import Image
-        img1 = numpy.asarray(Image.open(argv[1]))
-        img2 = numpy.asarray(Image.open(argv[2]))
-    except Exception, e:
+        img1 = rgb2gray(numpy.asarray(Image.open(argv[1])))
+        img2 = rgb2gray(numpy.asarray(Image.open(argv[2])))
+    except Exception as e:
         e = 'Cannot load images' + str(e)
-        print >> sys.stderr, e
+        sys.stderr.write(e + '\n')
 
     ssim_map = ssim(img1, img2)
     ms_ssim = msssim(img1, img2)
